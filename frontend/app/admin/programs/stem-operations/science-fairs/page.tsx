@@ -355,16 +355,30 @@ export default function ScienceFairsPage() {
     if (!editingStatistic) return;
 
     try {
-      const existing = statistics.find((s) => s.id === editingStatistic.id);
+      // Check if this is an existing statistic by checking if ID exists and is a valid database ID (not a temp timestamp)
+      const existing = editingStatistic.id && 
+        !editingStatistic.id.startsWith("temp-") &&
+        !/^\d{13,}$/.test(editingStatistic.id) && // Not a timestamp (13+ digits)
+        statistics.find((s) => s.id === editingStatistic.id);
+      
       const isUpdate = !!existing;
       const url = isUpdate
         ? `/api/programs/stem-operations/science-fairs/stats/${editingStatistic.id}`
         : "/api/programs/stem-operations/science-fairs/stats";
 
+      // For new records, don't send the id field - let the database auto-generate it
+      const payload = isUpdate 
+        ? editingStatistic 
+        : {
+            icon: editingStatistic.icon,
+            number: editingStatistic.number,
+            label: editingStatistic.label,
+          };
+
       const response = await fetch(url, {
         method: isUpdate ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingStatistic),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -482,18 +496,33 @@ export default function ScienceFairsPage() {
     if (!editingJourneyStage) return;
 
     try {
-      const existing = journeyStages.find(
-        (s) => s.id === editingJourneyStage.id
-      );
+      // Check if this is an existing stage by checking if ID exists and is a valid database ID (not a temp timestamp)
+      const existing = editingJourneyStage.id && 
+        !editingJourneyStage.id.startsWith("temp-") &&
+        !/^\d{13,}$/.test(editingJourneyStage.id) && // Not a timestamp (13+ digits)
+        journeyStages.find((s) => s.id === editingJourneyStage.id);
+      
       const isUpdate = !!existing;
       const url = isUpdate
         ? `/api/programs/stem-operations/science-fairs/journey-stages/${editingJourneyStage.id}`
         : "/api/programs/stem-operations/science-fairs/journey-stages";
 
+      // For new records, don't send the id field - let the database auto-generate it
+      const payload = isUpdate 
+        ? editingJourneyStage 
+        : {
+            icon: editingJourneyStage.icon,
+            badge: editingJourneyStage.badge,
+            title: editingJourneyStage.title,
+            number: editingJourneyStage.number,
+            description: editingJourneyStage.description,
+            order: editingJourneyStage.order || 0,
+          };
+
       const response = await fetch(url, {
         method: isUpdate ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingJourneyStage),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -767,26 +796,41 @@ export default function ScienceFairsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {winnerProjects.map((project) => (
-                  <Card key={project.id} className="overflow-hidden">
-                    {project.image && (
-                      <div className="h-48 overflow-hidden bg-muted">
-                        <img
-                          src={
-                            typeof project.image === "string"
-                              ? project.image
-                              : project.imagePreview || "/placeholder.svg"
-                          }
-                          alt={project.projectTitle}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-balance">
-                          {project.projectTitle || "Untitled Project"}
-                        </h3>
+                {winnerProjects.map((project) => {
+                  // Validate image URL - only show if it's a valid URL
+                  const imageSrc = typeof project.image === "string"
+                    ? project.image
+                    : project.imagePreview || null;
+                  
+                  const isValidImageUrl = imageSrc &&
+                    imageSrc.trim() !== "" &&
+                    imageSrc.length > 3 &&
+                    !imageSrc.match(/^[a-z]+$/i) && // Not just letters like "nnnnnn"
+                    (imageSrc.startsWith("http://") ||
+                      imageSrc.startsWith("https://") ||
+                      imageSrc.startsWith("data:") ||
+                      imageSrc.startsWith("/"));
+                  
+                  return (
+                    <Card key={project.id} className="overflow-hidden">
+                      {isValidImageUrl && (
+                        <div className="h-48 overflow-hidden bg-muted">
+                          <img
+                            src={imageSrc}
+                            alt={project.projectTitle}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Hide image on error
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        </div>
+                      )}
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-semibold text-balance">
+                            {project.projectTitle || "Untitled Project"}
+                          </h3>
                         <Badge className="bg-[#00BFA6] text-white shrink-0">
                           {project.placementBadge}
                         </Badge>
@@ -820,7 +864,8 @@ export default function ScienceFairsPage() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -985,12 +1030,21 @@ export default function ScienceFairsPage() {
                       Upload
                     </Button>
                   </div>
-                  {editingWinner.image && (
+                  {(editingWinner.image || editingWinner.imagePreview) && (
                     <div className="relative w-full h-48 rounded-lg overflow-hidden border">
                       <img
-                        src={editingWinner.image || "/placeholder.svg"}
+                        src={
+                          editingWinner.imagePreview ||
+                          (typeof editingWinner.image === "string"
+                            ? editingWinner.image
+                            : "/placeholder.svg")
+                        }
                         alt="Preview"
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Hide image on error
+                          e.currentTarget.style.display = "none";
+                        }}
                       />
                     </div>
                   )}
