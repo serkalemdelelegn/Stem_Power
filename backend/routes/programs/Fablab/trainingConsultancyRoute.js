@@ -228,6 +228,26 @@ router.delete(
 router.post(
   "/partnership-types",
   authenticate,
+  (req, res, next) => {
+    req.uploadFolder = "training_consultancy_partnership_types";
+    next();
+  },
+  // Handle file uploads (only for multipart/form-data)
+  (req, res, next) => {
+    const contentType = req.headers["content-type"] || "";
+    // Only use multer for multipart/form-data
+    if (contentType.includes("multipart/form-data")) {
+      singleUpload("file")(req, res, (err) => {
+        if (err) {
+          return res.status(400).json({ message: err.message });
+        }
+        next();
+      });
+    } else {
+      // For JSON requests, skip multer
+      next();
+    }
+  },
   trainingConsultancyController.createPartnershipType
 );
 router.get(
@@ -241,6 +261,26 @@ router.get(
 router.put(
   "/partnership-types/:id",
   authenticate,
+  (req, res, next) => {
+    req.uploadFolder = "training_consultancy_partnership_types";
+    next();
+  },
+  // Handle file uploads (only for multipart/form-data)
+  (req, res, next) => {
+    const contentType = req.headers["content-type"] || "";
+    // Only use multer for multipart/form-data
+    if (contentType.includes("multipart/form-data")) {
+      singleUpload("file")(req, res, (err) => {
+        if (err) {
+          return res.status(400).json({ message: err.message });
+        }
+        next();
+      });
+    } else {
+      // For JSON requests, skip multer
+      next();
+    }
+  },
   trainingConsultancyController.updatePartnershipType
 );
 router.delete(

@@ -172,7 +172,16 @@ export default function TrainingConsultancyPage() {
       });
       setHeroId(latestHero?.id ?? null);
 
-      setStats(Array.isArray(statsData) ? statsData : []);
+      // Transform backend stats (title) to frontend format (label)
+      const transformedStats = Array.isArray(statsData)
+        ? statsData.map((stat: any) => ({
+            id: String(stat.id),
+            icon: stat.icon || "users",
+            value: stat.value || "",
+            label: stat.title || "",
+          }))
+        : [];
+      setStats(transformedStats);
       setOfferings(Array.isArray(offeringsData) ? offeringsData : []);
       setPartners(Array.isArray(partnersData) ? partnersData : []);
       setPartnersSection({
@@ -323,6 +332,17 @@ export default function TrainingConsultancyPage() {
 
   const savePartnershipType = async () => {
     if (!editingPartnership) return;
+    
+    // Validate required fields
+    if (!editingPartnership.title || editingPartnership.title.trim() === "") {
+      alert("Title is required");
+      return;
+    }
+    if (!editingPartnership.description || editingPartnership.description.trim() === "") {
+      alert("Description is required");
+      return;
+    }
+    
     const benefits = parseListInput(editingPartnership.benefitsText);
     const isFile = editingPartnership.image instanceof File;
     
@@ -335,9 +355,9 @@ export default function TrainingConsultancyPage() {
         // Use FormData for file upload
         const formData = new FormData();
         formData.append("file", editingPartnership.image as File);
-        formData.append("title", editingPartnership.title);
-        formData.append("description", editingPartnership.description);
-        formData.append("icon", editingPartnership.icon);
+        formData.append("title", editingPartnership.title.trim());
+        formData.append("description", editingPartnership.description.trim());
+        formData.append("icon", editingPartnership.icon || "school");
         formData.append("benefits", JSON.stringify(benefits));
         
         if (exists) {
@@ -358,9 +378,9 @@ export default function TrainingConsultancyPage() {
       } else {
         // Use JSON for URL or null
         const payload = {
-          title: editingPartnership.title,
-          description: editingPartnership.description,
-          icon: editingPartnership.icon,
+          title: editingPartnership.title.trim(),
+          description: editingPartnership.description.trim(),
+          icon: editingPartnership.icon || "school",
           image: editingPartnership.image || null,
           benefits,
         };
@@ -432,7 +452,24 @@ export default function TrainingConsultancyPage() {
   const saveStat = async () => {
     if (!editingStat) return;
 
+    // Validate required fields
+    if (!editingStat.value || editingStat.value.trim() === "") {
+      alert("Value is required");
+      return;
+    }
+    if (!editingStat.label || editingStat.label.trim() === "") {
+      alert("Label is required");
+      return;
+    }
+
     try {
+      // Transform frontend format (label) to backend format (title)
+      const backendData = {
+        title: editingStat.label.trim(),
+        value: editingStat.value.trim(),
+        icon: editingStat.icon || null,
+      };
+
       // Check if this is an existing stat (has a valid ID that exists in stats)
       const existing =
         editingStat.id &&
@@ -443,9 +480,16 @@ export default function TrainingConsultancyPage() {
         try {
           const updated = await backendApi.put(
             `/api/training-consultancy/stats/${editingStat.id}`,
-            editingStat
+            backendData
           );
-          setStats(stats.map((s) => (s.id === updated.id ? updated : s)));
+          // Transform backend response (title) to frontend format (label)
+          const transformed = {
+            id: String(updated.id),
+            icon: updated.icon || "users",
+            value: updated.value || "",
+            label: updated.title || "",
+          };
+          setStats(stats.map((s) => (s.id === transformed.id ? transformed : s)));
           setIsStatDialogOpen(false);
           setEditingStat(null);
         } catch (err: any) {
@@ -456,9 +500,16 @@ export default function TrainingConsultancyPage() {
         try {
           const created = await backendApi.post(
             `/api/training-consultancy/stats`,
-            editingStat
+            backendData
           );
-          setStats([...stats, created]);
+          // Transform backend response (title) to frontend format (label)
+          const transformed = {
+            id: String(created.id),
+            icon: created.icon || "users",
+            value: created.value || "",
+            label: created.title || "",
+          };
+          setStats([...stats, transformed]);
           setIsStatDialogOpen(false);
           setEditingStat(null);
         } catch (err: any) {

@@ -96,7 +96,19 @@ exports.deleteConsultancy = async (req, res) => {
 // ===== Training Consultancy Stats =====
 exports.createConsultancyStat = async (req, res) => {
   try {
-    const stat = await TrainingConsultancyStat.create(req.body);
+    // Validate required fields
+    if (!req.body.title || req.body.title.trim() === "") {
+      return res.status(400).json({ error: "Title is required" });
+    }
+    if (!req.body.value || req.body.value.trim() === "") {
+      return res.status(400).json({ error: "Value is required" });
+    }
+
+    const stat = await TrainingConsultancyStat.create({
+      title: req.body.title.trim(),
+      value: req.body.value.trim(),
+      icon: req.body.icon || null,
+    });
     res.status(201).json(stat);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -127,7 +139,19 @@ exports.updateConsultancyStat = async (req, res) => {
       return res.status(404).json({ message: "Statistic not found" });
     }
 
-    await stat.update(req.body);
+    // Validate required fields if provided
+    if (req.body.title !== undefined && (!req.body.title || req.body.title.trim() === "")) {
+      return res.status(400).json({ error: "Title cannot be empty" });
+    }
+    if (req.body.value !== undefined && (!req.body.value || req.body.value.trim() === "")) {
+      return res.status(400).json({ error: "Value cannot be empty" });
+    }
+
+    await stat.update({
+      title: req.body.title !== undefined ? req.body.title.trim() : stat.title,
+      value: req.body.value !== undefined ? req.body.value.trim() : stat.value,
+      icon: req.body.icon !== undefined ? req.body.icon : stat.icon,
+    });
     res.json(stat);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -813,7 +837,34 @@ exports.deleteConsultancyService = async (req, res) => {
 // ===== Partnership Types =====
 exports.createPartnershipType = async (req, res) => {
   try {
-    const partnershipType = await PartnershipType.create(req.body);
+    // Validate required fields
+    if (!req.body.title || req.body.title.trim() === "") {
+      return res.status(400).json({ error: "Title is required" });
+    }
+    if (!req.body.description || req.body.description.trim() === "") {
+      return res.status(400).json({ error: "Description is required" });
+    }
+    
+    // Handle file upload - get image URL from uploaded file
+    const imageUrl = req.file ? req.file.path : req.body.image || null;
+    
+    // Parse benefits if it's a JSON string
+    let benefits = req.body.benefits;
+    if (typeof benefits === "string") {
+      try {
+        benefits = JSON.parse(benefits);
+      } catch {
+        benefits = [];
+      }
+    }
+    
+    const partnershipType = await PartnershipType.create({
+      title: req.body.title.trim(),
+      description: req.body.description.trim(),
+      icon: req.body.icon || "school",
+      image: imageUrl,
+      benefits: benefits || [],
+    });
     res.status(201).json(partnershipType);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -856,7 +907,34 @@ exports.updatePartnershipType = async (req, res) => {
       return res.status(404).json({ message: "Partnership type not found" });
     }
 
-    await partnershipType.update(req.body);
+    // Validate required fields if provided
+    if (req.body.title !== undefined && (!req.body.title || req.body.title.trim() === "")) {
+      return res.status(400).json({ error: "Title cannot be empty" });
+    }
+    if (req.body.description !== undefined && (!req.body.description || req.body.description.trim() === "")) {
+      return res.status(400).json({ error: "Description cannot be empty" });
+    }
+
+    // Handle file upload - get image URL from uploaded file, or keep existing
+    const imageUrl = req.file ? req.file.path : req.body.image !== undefined ? req.body.image : partnershipType.image;
+    
+    // Parse benefits if it's a JSON string
+    let benefits = req.body.benefits;
+    if (typeof benefits === "string") {
+      try {
+        benefits = JSON.parse(benefits);
+      } catch {
+        benefits = partnershipType.benefits || [];
+      }
+    }
+
+    await partnershipType.update({
+      title: req.body.title !== undefined ? req.body.title.trim() : partnershipType.title,
+      description: req.body.description !== undefined ? req.body.description.trim() : partnershipType.description,
+      icon: req.body.icon ?? partnershipType.icon,
+      image: imageUrl,
+      benefits: benefits !== undefined ? benefits : partnershipType.benefits,
+    });
     res.json(partnershipType);
   } catch (error) {
     res.status(500).json({ error: error.message });
