@@ -179,7 +179,20 @@ export default async function ProgramDynamicPage({
     | { program: string; slug: string }
     | Promise<{ program: string; slug: string }>;
 }) {
-  const { program, slug } = await resolveParams(params);
+  const { program: programParam, slug: slugParam } = await resolveParams(params);
+  
+  // Clean the program and slug parameters to handle any path-like values
+  const program = programParam
+    .replace(/^\/+|\/+$/g, "") // Remove leading/trailing slashes
+    .replace(/^programs[\/-]/, "") // Remove "programs/" prefix if accidentally included
+    .toLowerCase();
+  
+  const slug = slugParam
+    .replace(/^\/+|\/+$/g, "") // Remove leading/trailing slashes
+    .replace(/^programs[\/-]/, "") // Remove "programs/" prefix if accidentally included
+    .replace(/^[^\/]+\//, "") // Remove any program prefix from slug (e.g., "fablab/fablab-inno" -> "fablab-inno")
+    .toLowerCase();
+  
   const page = await fetchPage(program, slug);
 
   if (!page) {

@@ -198,11 +198,24 @@ export function PageEditorForm({
             <Input
               id="slug"
               value={formData.slug}
-              onChange={(e) =>
-                setFormData({ ...formData, slug: e.target.value })
-              }
+              onChange={(e) => {
+                // Normalize slug: remove slashes, spaces, and convert to lowercase
+                let value = e.target.value
+                  .replace(/^\/+|\/+$/g, "") // Remove leading/trailing slashes
+                  .replace(/\//g, "-") // Replace any slashes with hyphens
+                  .replace(/\s+/g, "-") // Replace spaces with hyphens
+                  .toLowerCase();
+                // Remove "programs/" prefix if user accidentally includes it
+                if (value.startsWith("programs/") || value.startsWith("programs-")) {
+                  value = value.replace(/^programs[\/-]/, "");
+                }
+                setFormData({ ...formData, slug: value });
+              }}
               placeholder="research-innovation"
             />
+            <p className="text-xs text-muted-foreground">
+              Only use lowercase letters, numbers, and hyphens. The full URL will be: /programs/{programLabel?.toLowerCase() || program}/{formData.slug || "your-slug"}
+            </p>
           </div>
         </div>
         <div className="space-y-2">

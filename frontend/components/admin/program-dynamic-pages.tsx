@@ -19,7 +19,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { backendApi } from "@/lib/backend-api";
-import { Eye, Layout, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, Layout, Pencil, Plus, Trash2, ExternalLink } from "lucide-react";
+import Link from "next/link";
 import {
   DynamicPage,
   PageEditorForm,
@@ -43,7 +44,14 @@ export function ProgramDynamicPages({
   const [isAddingPage, setIsAddingPage] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const buildPageUrl = (slug: string) => `/programs/${program}/${slug}`;
+  const buildPageUrl = (slug: string) => {
+    // Clean slug: remove any leading slashes or "programs/" prefix
+    const cleanSlug = slug
+      .replace(/^\/+/, "") // Remove leading slashes
+      .replace(/^programs[\/-]/, "") // Remove "programs/" or "programs-" prefix
+      .replace(/\/.*$/, ""); // Remove any path after first segment (in case slug contains path)
+    return `/programs/${program}/${cleanSlug}`;
+  };
 
   useEffect(() => {
     fetchPages();
@@ -75,8 +83,18 @@ export function ProgramDynamicPages({
   const handleSavePage = async (page: DynamicPage) => {
     try {
       setSaving(true);
+      // Clean slug: remove any path-like content
+      const cleanSlug = page.slug
+        .replace(/^\/+/, "") // Remove leading slashes
+        .replace(/\/+$/, "") // Remove trailing slashes
+        .replace(/^programs[\/-]/, "") // Remove "programs/" or "programs-" prefix
+        .replace(/\/.*$/, "") // Remove any path segments after first (in case slug contains path)
+        .toLowerCase()
+        .trim();
+      
       const payload = {
         ...page,
+        slug: cleanSlug, // Use cleaned slug
         program,
         createdAt: page.createdAt || new Date().toISOString(),
       };
@@ -172,7 +190,7 @@ export function ProgramDynamicPages({
   const emptyPage: DynamicPage = {
     id: "",
     title: "",
-    slug: `${program}-`,
+    slug: "", // Let user enter slug without prefix
     description: "",
     heroImage: "",
     heroTitle: "",
@@ -249,10 +267,23 @@ export function ProgramDynamicPages({
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => handleToggleStatus(page.id)}
-                      aria-label="Toggle publish"
+                      onClick={() => {
+                        const url = buildPageUrl(page.slug);
+                        window.open(url, '_blank');
+                      }}
+                      aria-label="View page"
+                      disabled={page.status !== 'published'}
                     >
                       <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleToggleStatus(page.id)}
+                      aria-label="Toggle publish"
+                      title={page.status === 'published' ? 'Unpublish' : 'Publish'}
+                    >
+                      {page.status === 'published' ? '✓' : '○'}
                     </Button>
                     <Button
                       variant="outline"

@@ -18,7 +18,7 @@ const programLinks = [
   {
     title: "STEM Centers",
     description: "Hands-on learning, labs, and mentorship across Ethiopia.",
-    href: "/programs/stem-centers",
+    href: "/programs/stem-operations",
   },
   {
     title: "FabLab & Maker Spaces",
