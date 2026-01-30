@@ -573,50 +573,78 @@ export default function BusinessDevelopmentPage() {
   };
 
   const addSuccessStory = async () => {
-    if (newStory.businessName && newStory.category && newStory.contactPerson) {
-      try {
-        const storyData = {
-          name: newStory.businessName,
-          licenseStatus: newStory.licenseStatus,
-          category: newStory.category,
-          categoryColor: newStory.categoryColor,
-          description: "",
-          contactPerson: newStory.contactPerson,
-          phone: newStory.phone,
-          email: newStory.email || "",
-        };
-        const response = await fetch(
-          "/api/programs/entrepreneurship/business-development",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(storyData),
-          }
-        );
-        if (response.ok) {
-          const newItem = await response.json();
-          setSuccessStories([
-            ...successStories,
-            {
-              ...newStory,
-              id: newItem.id,
-            },
-          ]);
-          setNewStory({
-            businessName: "",
-            licenseStatus: "Licensed",
-            category: "",
-            categoryColor: "blue",
-            contactPerson: "",
-            phone: "",
-            email: "",
-          });
-          setIsAddStoryOpen(false);
+    // Validate all required fields
+    if (!newStory.businessName || !newStory.businessName.trim()) {
+      alert("Business name is required");
+      return;
+    }
+    if (!newStory.licenseStatus || !newStory.licenseStatus.trim()) {
+      alert("License status is required");
+      return;
+    }
+    if (!newStory.category || !newStory.category.trim()) {
+      alert("Category is required");
+      return;
+    }
+    if (!newStory.contactPerson || !newStory.contactPerson.trim()) {
+      alert("Contact person is required");
+      return;
+    }
+    if (!newStory.phone || !newStory.phone.trim()) {
+      alert("Phone is required");
+      return;
+    }
+    if (!newStory.email || !newStory.email.trim()) {
+      alert("Email is required");
+      return;
+    }
+
+    try {
+      const storyData = {
+        name: newStory.businessName.trim(),
+        licenseStatus: newStory.licenseStatus.trim(),
+        category: newStory.category.trim(),
+        categoryColor: newStory.categoryColor,
+        description: "",
+        contactPerson: newStory.contactPerson.trim(),
+        phone: newStory.phone.trim(),
+        email: newStory.email.trim(),
+      };
+      const response = await fetch(
+        "/api/programs/entrepreneurship/business-development",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(storyData),
         }
-      } catch (error) {
-        console.error("Failed to add success story:", error);
-        alert("Failed to add success story. Please try again.");
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || errorData.message || `Failed to create success story: ${response.status}`);
       }
+      
+      const newItem = await response.json();
+      setSuccessStories([
+        ...successStories,
+        {
+          ...newStory,
+          id: newItem.id,
+        },
+      ]);
+      setNewStory({
+        businessName: "",
+        licenseStatus: "Licensed",
+        category: "",
+        categoryColor: "blue",
+        contactPerson: "",
+        phone: "",
+        email: "",
+      });
+      setIsAddStoryOpen(false);
+    } catch (error: any) {
+      console.error("Failed to add success story:", error);
+      alert(error.message || "Failed to add success story. Please try again.");
     }
   };
 

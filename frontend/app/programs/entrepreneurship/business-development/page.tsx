@@ -714,7 +714,7 @@ export default function BusinessDevelopmentPage() {
             <Card className="overflow-hidden border-2">
               <div className="relative h-64">
                 <Image
-                  src="/business-mentor-advising-young-entrepreneur-in-mod.jpg"
+                  src="/images/entrepreneurship/business-development/expert-mentorship-guidance.jpg"
                   alt="Business mentor advising entrepreneur"
                   fill
                   className="object-cover"
