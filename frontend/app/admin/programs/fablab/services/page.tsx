@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
 import { EditableHeroSection } from "@/components/editable-hero-section";
 import { EditableStatisticsSection } from "@/components/editable-statistics-section";
@@ -38,6 +38,13 @@ interface Machinery {
   imagePreview?: string; // For displaying preview of File objects
 }
 
+interface Benefit {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
 export default function ServicesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,21 +62,24 @@ export default function ServicesPage() {
   ]);
 
   const [machineries, setMachineries] = useState<Machinery[]>([]);
+  const [benefits, setBenefits] = useState<Benefit[]>([]);
 
   useEffect(() => {
     const load = async () => {
       try {
         setIsLoading(true);
-        const [heroRes, statsRes, machRes] = await Promise.all([
+        const [heroRes, statsRes, machRes, benefitsRes] = await Promise.all([
           fetch("/api/programs/fablab/services/hero"),
           fetch("/api/programs/fablab/services/stats"),
           fetch("/api/programs/fablab/services/machineries"),
+          fetch("/api/programs/fablab/services/benefits"),
         ]);
         if (!statsRes.ok || !machRes.ok)
           throw new Error("Failed to load services content");
         const hero = heroRes.ok ? await heroRes.json() : null;
         const stats = await statsRes.json();
         const machs = await machRes.json();
+        const benefitsData = benefitsRes.ok ? await benefitsRes.json() : [];
         setHeroData({
           badge: hero?.badge || "",
           title: hero?.title || "",
@@ -106,6 +116,17 @@ export default function ServicesPage() {
             }))
           : [];
         setMachineries(transformedMachineries);
+        
+        // Transform benefits
+        const transformedBenefits = Array.isArray(benefitsData)
+          ? benefitsData.map((benefit: any) => ({
+              id: String(benefit.id || ""),
+              title: benefit.title || "",
+              description: benefit.description || "",
+              icon: benefit.icon || "shield",
+            }))
+          : [];
+        setBenefits(transformedBenefits);
         setLoadError(null);
       } catch (e) {
         console.error("[Admin Services] load error", e);
@@ -269,6 +290,95 @@ export default function ServicesPage() {
 
       // Update local state with saved machineries
       setMachineries(machResults);
+
+      // Save benefits - get existing benefits to identify which to delete
+      const existingBenefitsRes = await fetch(
+        "/api/programs/fablab/services/benefits"
+      );
+      const existingBenefits = existingBenefitsRes.ok
+        ? await existingBenefitsRes.json()
+        : [];
+      const existingBenefitIds = existingBenefits.map((b: any) => String(b.id));
+      const incomingBenefitIds = benefits
+        .map((b) => b.id)
+        .filter(
+          (id) =>
+            id &&
+            !String(id).startsWith("temp-") &&
+            !String(id).match(/^\d{13}$/)
+        );
+
+      // Delete benefits that are not in the incoming array
+      const benefitsToDelete = existingBenefits.filter(
+        (existing: any) => !incomingBenefitIds.includes(String(existing.id))
+      );
+      await Promise.all(
+        benefitsToDelete.map((benefit: any) =>
+          fetch(`/api/programs/fablab/services/benefits/${benefit.id}`, {
+            method: "DELETE",
+          }).catch((err) => {
+            console.error(`Failed to delete benefit ${benefit.id}:`, err);
+          })
+        )
+      );
+
+      // Create or update benefits
+      const benefitResults = await Promise.all(
+        benefits.map(async (benefit) => {
+          const isNewBenefit =
+            !benefit.id ||
+            String(benefit.id).startsWith("temp-") ||
+            String(benefit.id).match(/^\d{13}$/);
+
+          const benefitData = {
+            title: benefit.title,
+            description: benefit.description,
+            icon: benefit.icon || "shield",
+          };
+
+          let saved;
+          if (isNewBenefit) {
+            // Create new benefit
+            const response = await fetch("/api/programs/fablab/services/benefits", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(benefitData),
+            });
+            saved = await response.json();
+          } else {
+            // Update existing benefit
+            try {
+              const response = await fetch(
+                `/api/programs/fablab/services/benefits/${benefit.id}`,
+                {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(benefitData),
+                }
+              );
+              saved = await response.json();
+            } catch (error) {
+              // If update fails, try to create
+              const response = await fetch("/api/programs/fablab/services/benefits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(benefitData),
+              });
+              saved = await response.json();
+            }
+          }
+
+          return {
+            id: String(saved.id),
+            title: saved.title || "",
+            description: saved.description || "",
+            icon: saved.icon || "shield",
+          };
+        })
+      );
+
+      // Update local state with saved benefits
+      setBenefits(benefitResults);
 
       // Check if responses are successful (status 200-299)
       const heroSuccess =
@@ -487,6 +597,114 @@ export default function ServicesPage() {
             machineries={machineries}
             onSave={(updatedMachineries) => setMachineries(updatedMachineries)}
           />
+
+          {/* Benefits Section */}
+          <div className="border rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">Benefits</h3>
+                <p className="text-sm text-muted-foreground">
+                  Manage the benefits section shown on the services page
+                </p>
+              </div>
+              <Button
+                onClick={() => {
+                  const newBenefit: Benefit = {
+                    id: `temp-${Date.now()}`,
+                    title: "",
+                    description: "",
+                    icon: "shield",
+                  };
+                  setBenefits([...benefits, newBenefit]);
+                }}
+                className="bg-[#00BFA6] hover:bg-[#00A693]"
+              >
+                Add Benefit
+              </Button>
+            </div>
+            {benefits.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No benefits added yet. Click "Add Benefit" to get started.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {benefits.map((benefit, index) => (
+                  <div
+                    key={benefit.id}
+                    className="border rounded-lg p-4 space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 space-y-3">
+                        <div>
+                          <label className="text-sm font-medium">Title</label>
+                          <input
+                            type="text"
+                            value={benefit.title}
+                            onChange={(e) => {
+                              const updated = [...benefits];
+                              updated[index].title = e.target.value;
+                              setBenefits(updated);
+                            }}
+                            className="w-full mt-1 px-3 py-2 border rounded-md"
+                            placeholder="e.g., Expert Support"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            Description
+                          </label>
+                          <textarea
+                            value={benefit.description}
+                            onChange={(e) => {
+                              const updated = [...benefits];
+                              updated[index].description = e.target.value;
+                              setBenefits(updated);
+                            }}
+                            className="w-full mt-1 px-3 py-2 border rounded-md"
+                            rows={2}
+                            placeholder="Describe the benefit..."
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Icon</label>
+                          <select
+                            value={benefit.icon}
+                            onChange={(e) => {
+                              const updated = [...benefits];
+                              updated[index].icon = e.target.value;
+                              setBenefits(updated);
+                            }}
+                            className="w-full mt-1 px-3 py-2 border rounded-md"
+                          >
+                            <option value="shield">Shield</option>
+                            <option value="users">Users</option>
+                            <option value="graduationcap">Graduation Cap</option>
+                            <option value="lightbulb">Lightbulb</option>
+                            <option value="factory">Factory</option>
+                            <option value="zap">Zap</option>
+                            <option value="printer">Printer</option>
+                            <option value="cpu">CPU</option>
+                            <option value="circuitboard">Circuit Board</option>
+                            <option value="wrench">Wrench</option>
+                          </select>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setBenefits(benefits.filter((_, i) => i !== index));
+                        }}
+                        className="ml-4 text-destructive"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Save Button */}
           <div className="flex justify-end gap-3">

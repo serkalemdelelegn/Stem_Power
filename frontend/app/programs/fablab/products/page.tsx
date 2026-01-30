@@ -60,6 +60,7 @@ export default function ProductsPage() {
   const [showAllFab, setShowAllFab] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
 
   const [hero, setHero] = useState<HeroContent | null>(null);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -710,9 +711,34 @@ export default function ProductsPage() {
                         <CardTitle className="text-lg text-balance leading-snug group-hover:text-[#24C3BC] transition-colors">
                           {translatedProduct.name}
                         </CardTitle>
-                        <CardDescription className="text-xs line-clamp-2">
-                          {translatedProduct.description}
-                        </CardDescription>
+                        <div className="space-y-1">
+                          <CardDescription 
+                            className={`text-xs ${expandedDescriptions.has(`edu-${index}`) ? '' : 'line-clamp-2'}`}
+                          >
+                            {translatedProduct.description}
+                          </CardDescription>
+                          {translatedProduct.description && translatedProduct.description.length > 100 && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const key = `edu-${index}`;
+                                setExpandedDescriptions(prev => {
+                                  const newSet = new Set(prev);
+                                  if (newSet.has(key)) {
+                                    newSet.delete(key);
+                                  } else {
+                                    newSet.add(key);
+                                  }
+                                  return newSet;
+                                });
+                              }}
+                              className="text-xs text-[#24C3BC] hover:text-[#367375] font-medium"
+                            >
+                              {expandedDescriptions.has(`edu-${index}`) ? 'Read Less' : 'Read More'}
+                            </button>
+                          )}
+                        </div>
                       </CardHeader>
                       <CardContent className="flex-grow pb-3">
                         <div className="space-y-3">
@@ -887,9 +913,34 @@ export default function ProductsPage() {
                           <div className="text-2xl font-bold text-[#367375] mb-2">
                             {translatedProduct.price}
                           </div>
-                          <CardDescription className="text-xs line-clamp-2">
-                            {translatedProduct.description}
-                          </CardDescription>
+                          <div className="space-y-1">
+                            <CardDescription 
+                              className={`text-xs ${expandedDescriptions.has(`fab-${index}`) ? '' : 'line-clamp-2'}`}
+                            >
+                              {translatedProduct.description}
+                            </CardDescription>
+                            {translatedProduct.description && translatedProduct.description.length > 100 && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const key = `fab-${index}`;
+                                  setExpandedDescriptions(prev => {
+                                    const newSet = new Set(prev);
+                                    if (newSet.has(key)) {
+                                      newSet.delete(key);
+                                    } else {
+                                      newSet.add(key);
+                                    }
+                                    return newSet;
+                                  });
+                                }}
+                                className="text-xs text-[#24C3BC] hover:text-[#367375] font-medium"
+                              >
+                                {expandedDescriptions.has(`fab-${index}`) ? 'Read Less' : 'Read More'}
+                              </button>
+                            )}
+                          </div>
                         </CardHeader>
 
                         {/* Features & Applications */}

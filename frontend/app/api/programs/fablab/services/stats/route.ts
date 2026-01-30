@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       icon: incoming.icon || null,
     };
     const response = await backendApiServer.post(
-      "/api/programs/fablab/services/stats",
+      "/api/fablab-services/stats",
       backendData,
       request
     );
@@ -57,7 +57,7 @@ export async function PUT(request: NextRequest) {
 
     // Get existing stats from backend to identify which ones to delete
     const existingStats = await backendApiServer.get(
-      "/api/programs/fablab/services/stats",
+      "/api/fablab-services/stats",
       request
     );
     const existingStatsArray = Array.isArray(existingStats)
@@ -76,7 +76,7 @@ export async function PUT(request: NextRequest) {
     await Promise.all(
       statsToDelete.map((stat: any) =>
         backendApiServer
-          .delete(`/api/programs/fablab/services/stats/${stat.id}`, request)
+          .delete(`/api/fablab-services/stats/${stat.id}`, request)
           .catch((err) => {
             console.error(`Failed to delete stat ${stat.id}:`, err);
           })
@@ -102,7 +102,7 @@ export async function PUT(request: NextRequest) {
           // Update existing stat (has a real backend ID)
           try {
             const response = await backendApiServer.put(
-              `/api/programs/fablab/services/stats/${stat.id}`,
+              `/api/fablab-services/stats/${stat.id}`,
               backendData,
               request
             );
@@ -114,7 +114,7 @@ export async function PUT(request: NextRequest) {
           } catch (error) {
             // If update fails (stat doesn't exist), create new one
             const response = await backendApiServer.post(
-              "/api/programs/fablab/services/stats",
+              "/api/fablab-services/stats",
               backendData,
               request
             );
@@ -127,7 +127,7 @@ export async function PUT(request: NextRequest) {
         } else {
           // Create new stat (temp ID, numeric ID from Date.now(), or no ID)
           const response = await backendApiServer.post(
-            "/api/programs/fablab/services/stats",
+            "/api/fablab-services/stats",
             backendData,
             request
           );

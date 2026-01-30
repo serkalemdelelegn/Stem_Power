@@ -701,7 +701,19 @@ exports.deletePartnersSection = async (req, res) => {
 // ===== Success Metrics =====
 exports.createSuccessMetric = async (req, res) => {
   try {
-    const metric = await SuccessMetric.create(req.body);
+    // Validate required fields
+    if (!req.body.metric || req.body.metric.trim() === "") {
+      return res.status(400).json({ error: "Metric value is required" });
+    }
+    if (!req.body.label || req.body.label.trim() === "") {
+      return res.status(400).json({ error: "Label is required" });
+    }
+
+    const metric = await SuccessMetric.create({
+      metric: req.body.metric.trim(),
+      label: req.body.label.trim(),
+      icon: req.body.icon || "trendingup",
+    });
     res.status(201).json(metric);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -744,7 +756,19 @@ exports.updateSuccessMetric = async (req, res) => {
       return res.status(404).json({ message: "Success metric not found" });
     }
 
-    await metric.update(req.body);
+    // Validate required fields if provided
+    if (req.body.metric !== undefined && (!req.body.metric || req.body.metric.trim() === "")) {
+      return res.status(400).json({ error: "Metric value cannot be empty" });
+    }
+    if (req.body.label !== undefined && (!req.body.label || req.body.label.trim() === "")) {
+      return res.status(400).json({ error: "Label cannot be empty" });
+    }
+
+    await metric.update({
+      metric: req.body.metric !== undefined ? req.body.metric.trim() : metric.metric,
+      label: req.body.label !== undefined ? req.body.label.trim() : metric.label,
+      icon: req.body.icon !== undefined ? req.body.icon : metric.icon,
+    });
     res.json(metric);
   } catch (error) {
     res.status(500).json({ error: error.message });

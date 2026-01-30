@@ -93,6 +93,13 @@ type PartnershipTypeFormState = PartnershipTypeItem & {
   imagePreview?: string;
 };
 
+interface SuccessMetricItem {
+  id: string;
+  metric: string;
+  label: string;
+  icon: string;
+}
+
 export default function TrainingConsultancyPage() {
   const [isSaving, setIsSaving] = useState(false);
 
@@ -136,10 +143,13 @@ export default function TrainingConsultancyPage() {
 
   const [isServiceDialogOpen, setIsServiceDialogOpen] = useState(false);
   const [isPartnershipDialogOpen, setIsPartnershipDialogOpen] = useState(false);
+  const [isSuccessMetricDialogOpen, setIsSuccessMetricDialogOpen] = useState(false);
   const [editingService, setEditingService] =
     useState<ConsultancyServiceFormState | null>(null);
   const [editingPartnership, setEditingPartnership] =
     useState<PartnershipTypeFormState | null>(null);
+  const [successMetrics, setSuccessMetrics] = useState<SuccessMetricItem[]>([]);
+  const [editingSuccessMetric, setEditingSuccessMetric] = useState<SuccessMetricItem | null>(null);
 
   const fetchAllData = async () => {
     try {
@@ -152,6 +162,7 @@ export default function TrainingConsultancyPage() {
         partnersSectionData,
         servicesData,
         partnershipTypesData,
+        successMetricsData,
       ] = await Promise.all([
         backendApi.get("/api/training-consultancy/hero"),
         backendApi.get("/api/training-consultancy/stats"),
@@ -160,6 +171,7 @@ export default function TrainingConsultancyPage() {
         backendApi.get("/api/training-consultancy/partners-section"),
         backendApi.get("/api/training-consultancy/consultancy-services"),
         backendApi.get("/api/training-consultancy/partnership-types"),
+        backendApi.get("/api/training-consultancy/success-metrics"),
       ]);
 
       const latestHero =
@@ -192,6 +204,12 @@ export default function TrainingConsultancyPage() {
       setPartnershipTypes(
         Array.isArray(partnershipTypesData) ? partnershipTypesData : []
       );
+      setSuccessMetrics(Array.isArray(successMetricsData) ? successMetricsData.map((m: any) => ({
+        id: String(m.id),
+        metric: m.metric || "",
+        label: m.label || "",
+        icon: m.icon || "trendingup",
+      })) : []);
       setLoadError(null);
     } catch (error) {
       console.error("[Admin TrainingConsultancy] Failed to load data", error);
@@ -435,6 +453,97 @@ export default function TrainingConsultancyPage() {
       alert(
         error.message || "Error deleting partnership type. Please try again."
       );
+    }
+  };
+
+  const addSuccessMetric = () => {
+    const newMetric: SuccessMetricItem = { id: "", metric: "", label: "", icon: "trendingup" };
+    setEditingSuccessMetric(newMetric);
+    setIsSuccessMetricDialogOpen(true);
+  };
+
+  const editSuccessMetric = (metric: SuccessMetricItem) => {
+    setEditingSuccessMetric({ ...metric });
+    setIsSuccessMetricDialogOpen(true);
+  };
+
+  const saveSuccessMetric = async () => {
+    if (!editingSuccessMetric) return;
+
+    // Validate required fields
+    if (!editingSuccessMetric.metric || editingSuccessMetric.metric.trim() === "") {
+      alert("Metric value is required");
+      return;
+    }
+    if (!editingSuccessMetric.label || editingSuccessMetric.label.trim() === "") {
+      alert("Label is required");
+      return;
+    }
+
+    try {
+      const backendData = {
+        metric: editingSuccessMetric.metric.trim(),
+        label: editingSuccessMetric.label.trim(),
+        icon: editingSuccessMetric.icon || "trendingup",
+      };
+
+      const existing =
+        editingSuccessMetric.id &&
+        editingSuccessMetric.id !== "" &&
+        successMetrics.find((m) => m.id === editingSuccessMetric.id);
+      
+      if (existing) {
+        // Update existing metric
+        const updated = await backendApi.put(
+          `/api/training-consultancy/success-metrics/${editingSuccessMetric.id}`,
+          backendData
+        );
+        setSuccessMetrics(
+          successMetrics.map((m) =>
+            m.id === String(updated.id)
+              ? {
+                  id: String(updated.id),
+                  metric: updated.metric || "",
+                  label: updated.label || "",
+                  icon: updated.icon || "trendingup",
+                }
+              : m
+          )
+        );
+        setIsSuccessMetricDialogOpen(false);
+        setEditingSuccessMetric(null);
+      } else {
+        // Create new metric
+        const created = await backendApi.post(
+          `/api/training-consultancy/success-metrics`,
+          backendData
+        );
+        setSuccessMetrics([
+          ...successMetrics,
+          {
+            id: String(created.id),
+            metric: created.metric || "",
+            label: created.label || "",
+            icon: created.icon || "trendingup",
+          },
+        ]);
+        setIsSuccessMetricDialogOpen(false);
+        setEditingSuccessMetric(null);
+      }
+    } catch (error: any) {
+      console.error("[Training Consultancy] Error saving success metric:", error);
+      alert(error.message || "Error saving success metric. Please try again.");
+    }
+  };
+
+  const deleteSuccessMetric = async (id: string) => {
+    if (!confirm("Delete this success metric?")) return;
+    try {
+      await backendApi.delete(`/api/training-consultancy/success-metrics/${id}`);
+      setSuccessMetrics(successMetrics.filter((m) => m.id !== id));
+    } catch (error: any) {
+      console.error("[Training Consultancy] Error deleting success metric:", error);
+      alert(error.message || "Error deleting success metric. Please try again.");
     }
   };
 
@@ -1212,6 +1321,70 @@ export default function TrainingConsultancyPage() {
             </CardContent>
           </Card>
 
+          {/* Success Metrics Section */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Success Metrics</CardTitle>
+                  <CardDescription>
+                    Key success indicators and achievements
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={addSuccessMetric}
+                  className="bg-[#00BFA6] hover:bg-[#00A693]"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Success Metric
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {successMetrics.length === 0 && !isLoading ? (
+                <p className="text-sm text-muted-foreground">
+                  No success metrics added yet.
+                </p>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  {successMetrics.map((metric) => (
+                    <Card key={metric.id}>
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="h-12 w-12 rounded-full bg-[#00BFA6] flex items-center justify-center text-white">
+                            {getIconComponent(metric.icon)}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => editSuccessMetric(metric)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteSuccessMetric(metric.id)}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-[#00BFA6]">
+                          {metric.metric}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {metric.label}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* What We Offer Section */}
           <Card>
             <CardHeader>
@@ -1702,6 +1875,89 @@ export default function TrainingConsultancyPage() {
                 </Button>
                 <Button
                   onClick={savePartnershipType}
+                  className="bg-[#00BFA6] hover:bg-[#00A693]"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Metric Dialog */}
+      <Dialog
+        open={isSuccessMetricDialogOpen}
+        onOpenChange={setIsSuccessMetricDialogOpen}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingSuccessMetric?.label || "New Success Metric"}
+            </DialogTitle>
+            <DialogDescription>
+              Add or edit success metric
+            </DialogDescription>
+          </DialogHeader>
+          {editingSuccessMetric && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="smMetric">Metric Value</Label>
+                <Input
+                  id="smMetric"
+                  placeholder="e.g., 95%, 80%, 50+"
+                  value={editingSuccessMetric.metric}
+                  onChange={(e) =>
+                    setEditingSuccessMetric({
+                      ...editingSuccessMetric,
+                      metric: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="smLabel">Label</Label>
+                <Input
+                  id="smLabel"
+                  placeholder="e.g., Teacher Confidence Increase"
+                  value={editingSuccessMetric.label}
+                  onChange={(e) =>
+                    setEditingSuccessMetric({
+                      ...editingSuccessMetric,
+                      label: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Icon</Label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={editingSuccessMetric.icon}
+                  onChange={(e) =>
+                    setEditingSuccessMetric({
+                      ...editingSuccessMetric,
+                      icon: e.target.value,
+                    })
+                  }
+                >
+                  <option value="trendingup">Trending Up</option>
+                  <option value="lightbulb">Lightbulb</option>
+                  <option value="award">Award</option>
+                  <option value="target">Target</option>
+                  <option value="users">Users</option>
+                  <option value="graduationcap">Graduation Cap</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsSuccessMetricDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={saveSuccessMetric}
                   className="bg-[#00BFA6] hover:bg-[#00A693]"
                 >
                   Save
