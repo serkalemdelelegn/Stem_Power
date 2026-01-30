@@ -392,15 +392,28 @@ export default function ProductsPage() {
         image: savedProduct.image || "",
       };
 
-      // Update local state
-      if (existing) {
+      // Update local state - check if product already exists by ID to prevent duplicates
+      const existingById = products.find((p) => p.id === transformedProduct.id);
+      if (existingById) {
+        // Update existing product
+        setProducts(
+          products.map((p) =>
+            p.id === transformedProduct.id ? transformedProduct : p
+          )
+        );
+      } else if (existing) {
+        // Product existed with temp ID, update it
         setProducts(
           products.map((p) =>
             p.id === editingProduct.id ? transformedProduct : p
           )
         );
       } else {
-        setProducts([...products, transformedProduct]);
+        // New product - check if it's not already in the list to prevent duplicates
+        const alreadyExists = products.some((p) => p.id === transformedProduct.id);
+        if (!alreadyExists) {
+          setProducts([...products, transformedProduct]);
+        }
       }
 
       // Clean up preview URL if it exists
